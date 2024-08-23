@@ -1,0 +1,21 @@
+.detailed-weather {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+  }
+  
+  .detailed-weather h3 {
+    margin-bottom: 10px;
+  }
+  
+  .detailed-weather p {
+    display: flex;
+    align-items: center;
+    margin: 5px 0;
+  }
+  
+  .detailed-weather svg {
+    margin-right: 10px;
+  }
+  

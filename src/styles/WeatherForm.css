@@ -1,0 +1,25 @@
+.weather-form {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.weather-input {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border: none;
+  border-bottom: 2px solid white;
+  background-color: transparent;
+  color: white;
+  transition: border-color 0.3s;
+}
+
+.weather-input:focus {
+  outline: none;
+  border-bottom-color: #4CAF50;
+}
+
+.weather-input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
