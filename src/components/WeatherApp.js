@@ -47,34 +47,44 @@ const WeatherApp = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,relativehumidity_2m,weathercode,windspeed_10m,pressure_msl&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=auto&temperature_unit=${newUnits === 'imperial' ? 'fahrenheit' : 'celsius'}&windspeed_unit=${newUnits === 'imperial' ? 'mph' : 'kmh'}`);
+      const response = await axios.get(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,relativehumidity_2m,weathercode,windspeed_10m,pressure_msl&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=auto`);
       
+      // Log API Response for debugging
+      console.log('API Response:', response.data);
+
       const currentIndex = response.data.hourly.time.indexOf(response.data.current_weather.time);
-      
+
+      // Convert temperature from Celsius to Fahrenheit or keep in Celsius
+      const convertTemperature = (temp, unit) => unit === 'imperial' ? (temp * 9/5) + 32 : temp;
+      // Convert pressure from hPa to inHg
+      const convertPressure = (pressure) => pressure * 0.02953; // Convert hPa to inHg
+
+      // Build current weather data with proper conversions
       const currentWeather = {
         main: {
-          temp: response.data.current_weather.temperature,
+          temp: convertTemperature(response.data.current_weather.temperature, newUnits),
           humidity: response.data.hourly.relativehumidity_2m[currentIndex],
-          pressure: response.data.hourly.pressure_msl[currentIndex],
-          temp_max: response.data.daily.temperature_2m_max[0],
-          temp_min: response.data.daily.temperature_2m_min[0],
+          pressure: convertPressure(response.data.hourly.pressure_msl[currentIndex]),
+          temp_max: convertTemperature(response.data.daily.temperature_2m_max[0], newUnits),
+          temp_min: convertTemperature(response.data.daily.temperature_2m_min[0], newUnits),
         },
         weather: [{ id: response.data.current_weather.weathercode }],
-        wind: { speed: response.data.current_weather.windspeed },
+        wind: { speed: response.data.current_weather.windspeed }, // km/h is correct for API data
         name: locationName,
         sys: {
-          sunrise: response.data.daily.sunrise[0],
-          sunset: response.data.daily.sunset[0],
+          sunrise: new Date(response.data.daily.sunrise[0]).toLocaleTimeString('en-US', { timeZone: response.data.timezone }),
+          sunset: new Date(response.data.daily.sunset[0]).toLocaleTimeString('en-US', { timeZone: response.data.timezone }),
           country: country_code,
         },
         coord: { lat, lon },
       };
 
+      // Build forecast data with proper conversions
       const forecastData = response.data.daily.time.map((time, index) => ({
         dt_txt: time,
         main: { 
-          temp_max: response.data.daily.temperature_2m_max[index],
-          temp_min: response.data.daily.temperature_2m_min[index],
+          temp_max: convertTemperature(response.data.daily.temperature_2m_max[index], newUnits),
+          temp_min: convertTemperature(response.data.daily.temperature_2m_min[index], newUnits),
         },
         weather: [{ id: response.data.daily.weathercode[index] }],
       })).filter(item => item.weather[0].id !== undefined);
@@ -82,7 +92,7 @@ const WeatherApp = () => {
       setWeatherData(currentWeather);
       setForecast(forecastData);
       updateBackground(currentWeather.weather[0].id);
-      
+
       setCache(prevCache => ({
         ...prevCache,
         [cacheKey]: {
