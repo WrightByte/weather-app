@@ -4,7 +4,6 @@ import WeatherForm from './WeatherForm';
 import CurrentWeather from './CurrentWeather';
 import Forecast from './Forecast';
 import DetailedWeather from './DetailedWeather';
-import FavoriteLocations from './FavoriteLocations';
 import { getBackgroundVideo } from '../utils/backgroundSelector';
 import '../styles/WeatherApp.css';
 
@@ -16,10 +15,6 @@ const WeatherApp = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [cache, setCache] = useState({});
-  const [favorites, setFavorites] = useState(() => {
-    const saved = localStorage.getItem('favorites');
-    return saved ? JSON.parse(saved) : [];
-  });
   const [infoBoxBackground, setInfoBoxBackground] = useState('');
 
   const updateInfoBoxBackground = (weatherCode) => {
@@ -35,7 +30,7 @@ const WeatherApp = () => {
   const fetchWeather = useCallback(async (lat, lon, locationName, country_code) => {
     const newUnits = country_code === 'US' ? 'imperial' : 'metric';
     setUnits(newUnits);
-
+  
     const cacheKey = `${lat},${lon},${newUnits}`;
     if (cache[cacheKey] && Date.now() - cache[cacheKey].timestamp < 600000) {
       setWeatherData(cache[cacheKey].weatherData);
@@ -43,7 +38,7 @@ const WeatherApp = () => {
       updateBackground(cache[cacheKey].weatherData.weather[0].id);
       return;
     }
-
+  
     setLoading(true);
     setError(null);
     try {
@@ -51,34 +46,35 @@ const WeatherApp = () => {
       
       // Log API Response for debugging
       console.log('API Response:', response.data);
-
+  
       const currentIndex = response.data.hourly.time.indexOf(response.data.current_weather.time);
-
+  
       // Convert temperature from Celsius to Fahrenheit or keep in Celsius
       const convertTemperature = (temp, unit) => unit === 'imperial' ? (temp * 9/5) + 32 : temp;
       // Convert pressure from hPa to inHg
       const convertPressure = (pressure) => pressure * 0.02953; // Convert hPa to inHg
-
+  
       // Build current weather data with proper conversions
       const currentWeather = {
         main: {
           temp: convertTemperature(response.data.current_weather.temperature, newUnits),
           humidity: response.data.hourly.relativehumidity_2m[currentIndex],
-          pressure: convertPressure(response.data.hourly.pressure_msl[currentIndex]),
+          pressure: convertPressure(response.data.hourly.pressure_msl[currentIndex]).toFixed(2),
           temp_max: convertTemperature(response.data.daily.temperature_2m_max[0], newUnits),
           temp_min: convertTemperature(response.data.daily.temperature_2m_min[0], newUnits),
         },
         weather: [{ id: response.data.current_weather.weathercode }],
-        wind: { speed: response.data.current_weather.windspeed }, // km/h is correct for API data
+        wind: { speed: newUnits === 'imperial' ? (response.data.current_weather.windspeed / 1.609) : response.data.current_weather.windspeed }, // Convert km/h to mph if needed
         name: locationName,
         sys: {
-          sunrise: new Date(response.data.daily.sunrise[0]).toLocaleTimeString('en-US', { timeZone: response.data.timezone }),
-          sunset: new Date(response.data.daily.sunset[0]).toLocaleTimeString('en-US', { timeZone: response.data.timezone }),
+          sunrise: response.data.daily.sunrise[0],
+          sunset: response.data.daily.sunset[0],
           country: country_code,
         },
         coord: { lat, lon },
+        timezone: response.data.timezone,
       };
-
+  
       // Build forecast data with proper conversions
       const forecastData = response.data.daily.time.map((time, index) => ({
         dt_txt: time,
@@ -88,11 +84,11 @@ const WeatherApp = () => {
         },
         weather: [{ id: response.data.daily.weathercode[index] }],
       })).filter(item => item.weather[0].id !== undefined);
-
+  
       setWeatherData(currentWeather);
       setForecast(forecastData);
       updateBackground(currentWeather.weather[0].id);
-
+  
       setCache(prevCache => ({
         ...prevCache,
         [cacheKey]: {
@@ -101,7 +97,7 @@ const WeatherApp = () => {
           timestamp: Date.now()
         }
       }));
-
+  
       updateInfoBoxBackground(currentWeather.weather[0].id);
     } catch (error) {
       console.error("Error fetching weather data:", error);
@@ -109,8 +105,8 @@ const WeatherApp = () => {
     } finally {
       setLoading(false);
     }
-  }, [cache]);
-
+  }, [cache]); // Removed 'units' from the dependency array
+  
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -172,23 +168,6 @@ const WeatherApp = () => {
     else setBackground('thunderstorm');
   };
 
-  const addToFavorites = (location) => {
-    setFavorites(prevFavorites => {
-      const newFavorite = { name: location.name, lat: location.coord.lat, lon: location.coord.lon };
-      const newFavorites = [...prevFavorites, newFavorite];
-      localStorage.setItem('favorites', JSON.stringify(newFavorites));
-      return newFavorites;
-    });
-  };
-
-  const removeFromFavorites = (location) => {
-    setFavorites(prevFavorites => {
-      const newFavorites = prevFavorites.filter(fav => fav.name !== location.name);
-      localStorage.setItem('favorites', JSON.stringify(newFavorites));
-      return newFavorites;
-    });
-  };
-
   return (
     <div className="weather-app">
       <video key={background} autoPlay muted loop id="background-video">
@@ -205,12 +184,7 @@ const WeatherApp = () => {
               <DetailedWeather data={weatherData} units={units} />
             </div>
             {forecast && <Forecast data={forecast} units={units} />}
-            <button onClick={() => addToFavorites(weatherData)} className="favorite-button">Add to Favorites</button>
-            <FavoriteLocations 
-              favorites={favorites} 
-              onSelect={handleLocationSearch} 
-              onRemove={removeFromFavorites}
-            />
+            {/* Removed favorites button and FavoriteLocations component */}
           </>
         )}
       </div>
